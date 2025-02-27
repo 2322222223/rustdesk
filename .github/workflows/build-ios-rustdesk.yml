@@ -49,8 +49,21 @@ jobs:
 
       # 上传 IPA 作为构建产物
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4 # 升级到 v4
         with:
           name: rustdesk-ios-ipa
           path: flutter/build/ios/ipa/*.ipa
           retention-days: 7 # 保留 7 天
+
+      # 可选：创建 Release 并上传 IPA
+      - name: Create Release and Upload IPA
+        if: github.event_name == 'push' # 仅在 push 时发布
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "v${{ github.sha }}" # 使用 commit SHA 作为 tag
+          name: "RustDesk iOS Build ${{ github.sha }}"
+          draft: false
+          prerelease: true
+          files: flutter/build/ios/ipa/*.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
