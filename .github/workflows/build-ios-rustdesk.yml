@@ -8,13 +8,11 @@ on:
 
 jobs:
   generate-bridge:
-    uses: rustdesk/rustdesk/.github/workflows/bridge.yml@master # 调用官方 bridge.yml
-    with:
-      flutter-version: "3.24.5"
+    uses: rustdesk/rustdesk/.github/workflows/bridge.yml@master # 不传递 flutter-version
 
   build-ios:
     runs-on: macos-13
-    needs: generate-bridge # 依赖桥接代码生成
+    needs: generate-bridge
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -61,8 +59,8 @@ jobs:
       - name: Restore bridge files
         uses: actions/download-artifact@v4
         with:
-          name: bridge-artifact # 下载生成的桥接文件
-          path: ./ # 恢复到项目根目录
+          name: bridge-artifact
+          path: ./src # 确保恢复到 src 目录
 
       - name: Get Flutter dependencies
         run: |
