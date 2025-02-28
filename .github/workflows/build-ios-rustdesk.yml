@@ -21,14 +21,15 @@ jobs:
           source $HOME/.cargo/env
           rustup target add aarch64-apple-ios
 
-      - name: Install FFmpeg
+      - name: Install FFmpeg and pkg-config
         run: |
-          brew install ffmpeg
-          # 验证 FFmpeg 安装
+          brew install ffmpeg pkg-config
+          # 验证 FFmpeg 和 pkg-config
           ffmpeg -version
-          # 设置环境变量，确保 hwcodec 能找到 FFmpeg
-          echo "FFMPEG_DIR=/usr/local/Cellar/ffmpeg/$(brew list --versions ffmpeg | head -n1 | cut -d' ' -f2)" >> $GITHUB_ENV
-          echo "PATH=/usr/local/Cellar/ffmpeg/$(brew list --versions ffmpeg | head -n1 | cut -d' ' -f2)/bin:$PATH" >> $GITHUB_ENV
+          pkg-config --modversion libavcodec
+          # 设置 PKG_CONFIG_PATH
+          export PKG_CONFIG_PATH="/usr/local/Cellar/ffmpeg/$(brew list --versions ffmpeg | head -n1 | cut -d' ' -f2)/lib/pkgconfig:$PKG_CONFIG_PATH"
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -45,7 +46,7 @@ jobs:
         run: |
           cargo build --features flutter,hwcodec --release --target aarch64-apple-ios --lib
         env:
-          RUST_BACKTRACE: 1 # 显示完整回溯以调试
+          RUST_BACKTRACE: full # 获取完整回溯
 
       - name: Build iOS IPA
         run: |
