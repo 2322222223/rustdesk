@@ -1,4 +1,4 @@
-name: Build RustDesk iOS IPA
+name: Build RustDesk iOS IPA (Simple)
 
 on:
   workflow_dispatch:
@@ -8,67 +8,28 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-13
+    runs-on: macos-13 # 官方使用的 macOS 版本
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: 1.75
-          targets: aarch64-apple-ios
-          components: rustfmt
-
-      - name: Install dependencies
-        run: |
-          brew install nasm yasm pkg-config
-          pkg-config --version
-
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: 3.24.5
+          flutter-version: 3.24.5 # 官方使用的版本
 
       - name: Patch Flutter
         run: |
           cd $(dirname $(dirname $(which flutter)))
           git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
 
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
-        with:
-          vcpkgGitCommitId: 6f29f12e82a8293156836ad81cc9bf5af41fe836
-          doNotCache: false
-
-      - name: Install vcpkg dependencies
-        run: |
-          $VCPKG_ROOT/vcpkg install --triplet arm64-ios --x-install-root="$VCPKG_ROOT/installed"
-          export PKG_CONFIG_PATH="$VCPKG_ROOT/installed/arm64-ios/lib/pkgconfig:$PKG_CONFIG_PATH"
-          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
-          ls -l "$VCPKG_ROOT/installed/arm64-ios/lib/pkgconfig"
-          pkg-config --modversion libavcodec
-
       - name: Get Flutter dependencies
         run: |
           cd flutter
           flutter pub get
-
-      - name: Generate bridge code
-        run: |
-          cd flutter
-          flutter pub run flutter_rust_bridge:generate
-          ls -l ../src/bridge_generated.rs # 验证生成的文件
-
-      - name: Build Rust library
-        run: |
-          cargo build --features flutter,hwcodec --release --target aarch64-apple-ios --lib --verbose
-        env:
-          RUST_BACKTRACE: full
-          CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG: true
 
       - name: Build iOS IPA
         run: |
