@@ -24,8 +24,11 @@ jobs:
       - name: Install FFmpeg
         run: |
           brew install ffmpeg
-          # 检查 FFmpeg 是否安装成功
+          # 验证 FFmpeg 安装
           ffmpeg -version
+          # 设置环境变量，确保 hwcodec 能找到 FFmpeg
+          echo "FFMPEG_DIR=/usr/local/Cellar/ffmpeg/$(brew list --versions ffmpeg | head -n1 | cut -d' ' -f2)" >> $GITHUB_ENV
+          echo "PATH=/usr/local/Cellar/ffmpeg/$(brew list --versions ffmpeg | head -n1 | cut -d' ' -f2)/bin:$PATH" >> $GITHUB_ENV
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -41,6 +44,8 @@ jobs:
       - name: Build Rust library
         run: |
           cargo build --features flutter,hwcodec --release --target aarch64-apple-ios --lib
+        env:
+          RUST_BACKTRACE: 1 # 显示完整回溯以调试
 
       - name: Build iOS IPA
         run: |
