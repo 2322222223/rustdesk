@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-latest
+    runs-on: macos-13 # 官方使用 macos-13
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -16,14 +16,15 @@ jobs:
           submodules: recursive
 
       - name: Install Rust
-        run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          source $HOME/.cargo/env
-          rustup target add aarch64-apple-ios
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: 1.75 # 官方使用 1.75
+          targets: aarch64-apple-ios
+          components: rustfmt
 
-      - name: Install FFmpeg and pkg-config
+      - name: Install dependencies
         run: |
-          brew install ffmpeg pkg-config
+          brew install nasm yasm pkg-config ffmpeg
           # 验证 FFmpeg 和 pkg-config
           ffmpeg -version
           pkg-config --modversion libavcodec
@@ -34,8 +35,13 @@ jobs:
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.x'
-          channel: 'stable'
+          channel: stable
+          flutter-version: 3.24.5 # 官方使用 3.24.5
+
+      - name: Patch Flutter
+        run: |
+          cd $(dirname $(dirname $(which flutter)))
+          git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
 
       - name: Get Flutter dependencies
         run: |
@@ -44,9 +50,10 @@ jobs:
 
       - name: Build Rust library
         run: |
-          cargo build --features flutter,hwcodec --release --target aarch64-apple-ios --lib
+          cargo build --features flutter,hwcodec --release --target aarch64-apple-ios --lib --verbose
         env:
-          RUST_BACKTRACE: full # 获取完整回溯
+          RUST_BACKTRACE: full
+          CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG: true
 
       - name: Build iOS IPA
         run: |
@@ -60,3 +67,15 @@ jobs:
           name: rustdesk-ios-ipa
           path: flutter/build/ios/ipa/*.ipa
           retention-days: 7
+
+      - name: Publish Release
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'push'
+        with:
+          tag_name: "v${{ github.sha }}"
+          name: "RustDesk iOS Build ${{ github.sha }}"
+          draft: false
+          prerelease: true
+          files: flutter/build/ios/ipa/*.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
