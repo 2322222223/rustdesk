@@ -8,7 +8,7 @@ on:
 
 jobs:
   generate-bridge:
-    uses: rustdesk/rustdesk/.github/workflows/bridge.yml@master # 使用官方桥接生成
+    uses: rustdesk/rustdesk/.github/workflows/bridge.yml@master # 生成桥接代码
 
   build-ios:
     runs-on: macos-13
@@ -26,6 +26,10 @@ jobs:
           targets: aarch64-apple-ios
           components: rustfmt
 
+      - name: Install dependencies
+        run: |
+          brew install nasm yasm pkg-config
+
       - name: Install Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -37,11 +41,26 @@ jobs:
           cd $(dirname $(dirname $(which flutter)))
           git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff
 
+      - name: Setup vcpkg
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgGitCommitId: 6f29f12e82a8293156836ad81cc9bf5af41fe836 # 官方版本
+          doNotCache: false
+
+      - name: Install vcpkg dependencies
+        run: |
+          $VCPKG_ROOT/vcpkg install --triplet arm64-ios --x-install-root="$VCPKG_ROOT/installed"
+          export VCPKG_ROOT="$VCPKG_ROOT"
+          echo "VCPKG_ROOT=$VCPKG_ROOT" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=$VCPKG_ROOT/installed/arm64-ios/lib/pkgconfig:$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          ls -l "$VCPKG_ROOT/installed/arm64-ios/lib/pkgconfig" # 验证目录
+          pkg-config --modversion libopus # 验证 Opus
+
       - name: Restore bridge files
         uses: actions/download-artifact@v4
         with:
-          name: bridge-artifact # 下载桥接文件
-          path: ./ # 恢复到项目根目录
+          name: bridge-artifact
+          path: ./
 
       - name: Get Flutter dependencies
         run: |
