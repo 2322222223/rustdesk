@@ -7,12 +7,8 @@ on:
       - master
 
 jobs:
-  generate-bridge:
-    uses: rustdesk/rustdesk/.github/workflows/bridge.yml@master # 不传递 flutter-version
-
   build-ios:
     runs-on: macos-13
-    needs: generate-bridge
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -56,16 +52,16 @@ jobs:
           ls -l "$VCPKG_ROOT/installed/arm64-ios/lib/pkgconfig"
           pkg-config --modversion libavcodec
 
-      - name: Restore bridge files
-        uses: actions/download-artifact@v4
-        with:
-          name: bridge-artifact
-          path: ./src # 确保恢复到 src 目录
-
       - name: Get Flutter dependencies
         run: |
           cd flutter
           flutter pub get
+
+      - name: Generate bridge code
+        run: |
+          cd flutter
+          flutter pub run flutter_rust_bridge:generate
+          ls -l ../src/bridge_generated.rs # 验证生成的文件
 
       - name: Build Rust library
         run: |
